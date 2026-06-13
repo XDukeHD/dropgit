@@ -55,3 +55,7 @@ To remove the service and binaries completely:
 make service-remove
 make uninstall
 ```
+
+
+## ToDo:
+- [ ] Add automatic upload to cloud storage (Google Drive, Dropbox, etc.)
