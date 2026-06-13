@@ -1,0 +1,10 @@
+source_directory: ~/Projects
+backup_destination: ~/Documents/DropGit/backups
+schedule_interval: daily
+custom_cron_expression: ""
+retention_days: 30
+compression_level: 6
+parallel_backups: 3
+enable_sha256_validation: true
+enable_changelog: true
+log_level: info

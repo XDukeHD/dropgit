@@ -1,0 +1,16 @@
+[Unit]
+Description=DropGit Backup Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/dropgit
+ExecReload=/bin/kill -SIGHUP $MAINPID
+Restart=on-failure
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=dropgit
+
+[Install]
+WantedBy=default.target
