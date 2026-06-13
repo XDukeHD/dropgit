@@ -25,6 +25,14 @@ func Run() {
 	}
 	defer database.CloseDB()
 
+	hasBackup, err := database.HasAnyBackupSession()
+	if err != nil {
+		logger.Log.Errorf("Failed to check for existing backups: %v", err)
+	} else if !hasBackup {
+		logger.Log.Info("No previous backups found. Starting initial backup...")
+		go backup.PerformBackup()
+	}
+
 	if err := scheduler.Start(); err != nil {
 		logger.Log.Fatalf("Failed to start scheduler: %v", err)
 	}

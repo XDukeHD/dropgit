@@ -2,7 +2,7 @@ BINARY_NAME=dropgit
 GO_BUILD_ENV=CGO_ENABLED=1
 GO_LDFLAGS=-ldflags="-linkmode external -extldflags -static"
 
-.PHONY: all build install uninstall service-install service-remove test clean db-migrate dev
+.PHONY: all build install uninstall service-install service-remove test clean db-migrate dev update
 
 all: build
 
@@ -13,6 +13,11 @@ install: build
 	sudo cp $(BINARY_NAME) /usr/local/bin/
 	mkdir -p ~/.config/dropgit
 	cp config.yml ~/.config/dropgit/config.yml.default
+
+update: build
+	systemctl --user stop dropgit.service || true
+	sudo cp $(BINARY_NAME) /usr/local/bin/
+	systemctl --user start dropgit.service
 
 uninstall:
 	sudo rm -f /usr/local/bin/$(BINARY_NAME)

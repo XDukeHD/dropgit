@@ -4,6 +4,15 @@ import (
 	"time"
 )
 
+func HasAnyBackupSession() (bool, error) {
+	var count int
+	err := DB.QueryRow("SELECT COUNT(*) FROM backup_sessions").Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func CreateSession(sessionDate, startTime string) (int64, error) {
 	stmt, err := DB.Prepare("INSERT INTO backup_sessions (session_date, start_time, status) VALUES (?, ?, ?)")
 	if err != nil {

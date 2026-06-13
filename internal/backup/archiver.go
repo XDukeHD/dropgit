@@ -16,7 +16,7 @@ func CreateArchive(files []FileInfo, projectPath, outputPath string, compression
 		filePaths = append(filePaths, f.Path)
 	}
 
-	tempFile := outputPath + ".tmp"
+	tempFile := outputPath + ".tmp.tar.gz"
 	if err := tarGz.Archive(filePaths, tempFile); err != nil {
 		os.Remove(tempFile)
 		return fmt.Errorf("failed to create archive: %w", err)

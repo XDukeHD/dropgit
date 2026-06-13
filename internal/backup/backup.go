@@ -137,7 +137,6 @@ func backupSingleProject(sessionID int64, projectName, destDir string) (int, boo
 	} else if changelog == nil {
 		needsBackup = true
 	} else {
-		// Even if no changes in DB, we need to ensure the archive exists.
 		if _, err := os.Stat(archivePath); os.IsNotExist(err) {
 			needsBackup = true
 		}
