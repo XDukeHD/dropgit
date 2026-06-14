@@ -64,7 +64,7 @@ func WriteChangelog(cl *Changelog, destDir string) error {
 		return nil
 	}
 
-	path := filepath.Join(destDir, cl.ProjectName+"_CHANGELOG.json")
+	path := filepath.Join(destDir, ProjectFileStem(cl.ProjectName)+"_CHANGELOG.json")
 	data, err := json.MarshalIndent(cl, "", "  ")
 	if err != nil {
 		return err

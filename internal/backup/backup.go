@@ -1,7 +1,6 @@
 package backup
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -35,18 +34,11 @@ func PerformBackup() {
 		return
 	}
 
-	entries, err := os.ReadDir(config.Cfg.SourceDirectory)
+	projects, err := DiscoverProjects(config.Cfg.SourceDirectory)
 	if err != nil {
-		logger.Log.Errorf("Could not read source directory: %v", err)
+		logger.Log.Errorf("Could not discover projects: %v", err)
 		database.UpdateSession(sessionID, utils.CurrentDateTimeISO(), 0, 0, 0, 0, "", "failed")
 		return
-	}
-
-	var projects []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			projects = append(projects, entry.Name())
-		}
 	}
 
 	totalProjects := len(projects)
@@ -69,11 +61,11 @@ func PerformBackup() {
 	for _, p := range projects {
 		wg.Add(1)
 		sem <- struct{}{}
-		go func(projectName string) {
+		go func(project ProjectTarget) {
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			size, success := backupSingleProject(sessionID, projectName, destDir)
+			size, success := backupSingleProject(sessionID, project, destDir)
 			results <- result{success: success, size: size}
 		}(p)
 	}
@@ -105,9 +97,10 @@ func PerformBackup() {
 	logger.Log.Infof("Backup cycle finished. Success: %d, Failed: %d", successCount, failedCount)
 }
 
-func backupSingleProject(sessionID int64, projectName, destDir string) (int, bool) {
-	projectPath := filepath.Join(config.Cfg.SourceDirectory, projectName)
-	archiveName := fmt.Sprintf("%s.tar.gz", projectName)
+func backupSingleProject(sessionID int64, project ProjectTarget, destDir string) (int, bool) {
+	projectName := project.Name
+	projectPath := project.Path
+	archiveName := ProjectArchiveName(projectName)
 	archivePath := filepath.Join(destDir, archiveName)
 
 	logger.Log.Infof("Scanning project: %s", projectName)
