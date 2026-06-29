@@ -2,11 +2,13 @@ package database
 
 import (
 	"time"
+
+	"database/sql"
 )
 
 func HasAnyBackupSession() (bool, error) {
 	var count int
-	err := DB.QueryRow("SELECT COUNT(*) FROM backup_sessions").Scan(&count)
+	err := DB.QueryRow("SELECT COUNT(*) FROM backup_sessions WHERE successful_projects > 0").Scan(&count)
 	if err != nil {
 		return false, err
 	}
@@ -70,4 +72,19 @@ func GetPreviousFileHash(projectName, filePath string) (string, error) {
 		return "", err
 	}
 	return hash, nil
+}
+
+func GetLatestBackupEndTime() (time.Time, error) {
+	var endTime sql.NullString
+	err := DB.QueryRow("SELECT end_time FROM backup_sessions WHERE end_time IS NOT NULL AND end_time != '' ORDER BY id DESC LIMIT 1").Scan(&endTime)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	parsed, parseErr := time.Parse(time.RFC3339, endTime.String)
+	if parseErr != nil {
+		return time.Time{}, parseErr
+	}
+
+	return parsed, nil
 }

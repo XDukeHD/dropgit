@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,6 +31,14 @@ var projectMarkers = map[string]struct{}{
 	"Gemfile":             {},
 	"mix.exs":             {},
 	"Makefile":            {},
+	"docker-compose.yml":  {},
+	"docker-compose.yaml": {},
+	"Dockerfile":          {},
+	"README.md":           {},
+	"main.go":             {},
+	"index.html":          {},
+	"index.js":            {},
+	"manage.py":           {},
 }
 
 var discoverySkipDirs = map[string]struct{}{
@@ -46,6 +55,26 @@ var discoverySkipDirs = map[string]struct{}{
 	"temp":         {},
 }
 
+var errFound = errors.New("found")
+
+func hasAnyFiles(dirPath string) bool {
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			if path != dirPath {
+				if _, skip := discoverySkipDirs[info.Name()]; skip {
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		}
+		return errFound
+	})
+	return err == errFound
+}
+
 func DiscoverProjects(sourceDirectory string) ([]ProjectTarget, error) {
 	entries, err := os.ReadDir(sourceDirectory)
 	if err != nil {
@@ -59,62 +88,84 @@ func DiscoverProjects(sourceDirectory string) ([]ProjectTarget, error) {
 		}
 
 		rootPath := filepath.Join(sourceDirectory, entry.Name())
-		targets, walkErr := discoverProjectsInDir(sourceDirectory, rootPath)
-		if walkErr != nil {
-			continue
+		targets, hasMarkerInTree := discoverProjectsInDir(sourceDirectory, rootPath)
+		
+		if !hasMarkerInTree && len(targets) == 0 {
+			if hasAnyFiles(rootPath) {
+				relPath, _ := filepath.Rel(sourceDirectory, rootPath)
+				projects = append(projects, ProjectTarget{
+					Name: filepath.ToSlash(relPath),
+					Path: rootPath,
+				})
+			}
+		} else {
+			projects = append(projects, targets...)
 		}
-
-		projects = append(projects, targets...)
 	}
 
 	return projects, nil
 }
 
-func discoverProjectsInDir(sourceDirectory, dirPath string) ([]ProjectTarget, error) {
+type childResult struct {
+	path      string
+	projects  []ProjectTarget
+	hadMarker bool
+}
+
+func discoverProjectsInDir(sourceDirectory, dirPath string) ([]ProjectTarget, bool) {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
-		return nil, err
+		return nil, false
 	}
 
-	foundProjects := make([]ProjectTarget, 0)
-	hasRegularFiles := false
-	hasProjectMarker := false
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			if _, ok := projectMarkers[entry.Name()]; ok {
+				relPath, _ := filepath.Rel(sourceDirectory, dirPath)
+				return []ProjectTarget{{
+					Name: filepath.ToSlash(relPath),
+					Path: dirPath,
+				}}, true
+			}
+		}
+	}
+
+	var foundProjects []ProjectTarget
+	anyChildHadMarker := false
+	var results []childResult
 
 	for _, entry := range entries {
 		if entry.IsDir() {
 			if _, skip := discoverySkipDirs[entry.Name()]; skip {
 				continue
 			}
-
 			childPath := filepath.Join(dirPath, entry.Name())
-			childProjects, childErr := discoverProjectsInDir(sourceDirectory, childPath)
-			if childErr != nil {
-				continue
+			cp, hadMarker := discoverProjectsInDir(sourceDirectory, childPath)
+			results = append(results, childResult{childPath, cp, hadMarker})
+			if hadMarker {
+				anyChildHadMarker = true
 			}
-			foundProjects = append(foundProjects, childProjects...)
-			continue
-		}
-
-		hasRegularFiles = true
-		if _, ok := projectMarkers[entry.Name()]; ok {
-			hasProjectMarker = true
 		}
 	}
 
-	includeCurrent := hasProjectMarker || (len(foundProjects) == 0 && hasRegularFiles)
-	if includeCurrent {
-		relPath, relErr := filepath.Rel(sourceDirectory, dirPath)
-		if relErr != nil {
-			return foundProjects, nil
+	if anyChildHadMarker {
+		for _, r := range results {
+			if r.hadMarker {
+				foundProjects = append(foundProjects, r.projects...)
+			} else {
+				if hasAnyFiles(r.path) {
+					relPath, _ := filepath.Rel(sourceDirectory, r.path)
+					foundProjects = append(foundProjects, ProjectTarget{
+						Name: filepath.ToSlash(relPath),
+						Path: r.path,
+					})
+				}
+			}
 		}
-
-		foundProjects = append(foundProjects, ProjectTarget{
-			Name: filepath.ToSlash(relPath),
-			Path: dirPath,
-		})
+		return foundProjects, true
 	}
 
-	return foundProjects, nil
+	return nil, false
 }
 
 func ProjectArchiveName(projectName string) string {

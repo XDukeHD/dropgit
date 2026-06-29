@@ -2,7 +2,7 @@ BINARY_NAME=dropgit
 GO_BUILD_ENV=CGO_ENABLED=1
 GO_LDFLAGS=-ldflags="-linkmode external -extldflags -static"
 
-.PHONY: all build install uninstall service-install service-remove test clean db-migrate dev update
+.PHONY: all build install uninstall service-install service-remove test clean db-migrate db-reset dev update
 
 all: build
 
@@ -50,3 +50,6 @@ db-migrate: build
 
 dev: build
 	./$(BINARY_NAME)
+
+db-reset:
+	rm -f ~/.local/share/dropgit/backup.db
